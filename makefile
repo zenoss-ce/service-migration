@@ -15,7 +15,7 @@ PROJECT_DIR      := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 
 # Define the image name, version and tag name for the docker build image
 BUILD_IMAGE = build-tools
-BUILD_VERSION = 0.0.5
+BUILD_VERSION = 0.0.10
 TAG = zenoss/$(BUILD_IMAGE):$(BUILD_VERSION)
 
 UID := $(shell id -u)
@@ -26,6 +26,8 @@ DOCKER_RUN := docker run --rm \
                 --user $(UID):$(GID) \
                 $(TAG) \
                 /bin/bash -c
+
+IN_DOCKER = 1
 
 default: wheel
 
@@ -38,11 +40,19 @@ clean:
 	rm -rf $(PROJECT_DIR)/venv
 
 test:
-	$(DOCKER_RUN) "cd /mnt && python -m unittest discover"
+	if [ -n "$(IN_DOCKER)" ]; then \
+		$(DOCKER_RUN) "cd /mnt && python -m unittest discover"; \
+	else \
+		python  -m unittest discover; \
+	fi
 
 wheel:
-	@echo "Building a binary distribution of service-migration"
-	$(DOCKER_RUN) "cd /mnt && python setup.py bdist_wheel"
+	@echo "Building a binary distribution of service-migration $(IN_DOCKER)"
+	if [ -n "$(IN_DOCKER)" ]; then \
+		$(DOCKER_RUN) "cd /mnt && python setup.py bdist_wheel"; \
+	else \
+		python setup.py bdist_wheel; \
+	fi
 
 example:
 	MIGRATE_INPUTFILE=tests/v1.0.0.json MIGRATE_OUTPUTFILE=out.json python example.py
